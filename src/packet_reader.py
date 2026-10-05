@@ -13,7 +13,7 @@ def parse_packet(packet):
         protocol = "UDP"
     elif ICMP in packet:
         protocol = "ICMP"
-
+        
     return Packetinfo(
         src_ip=packet[IP].src,
         dst_ip=packet[IP].dst,
