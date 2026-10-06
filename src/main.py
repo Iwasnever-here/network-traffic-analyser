@@ -1,24 +1,36 @@
-from scapy.all import IP, TCP, UDP, ICMP
+from scapy.all import rdpcap
+
 from src.analyser import TrafficAnalyser
 
 
-packets = [
-    IP(src="192.168.1.1", dst="192.168.1.2") / TCP(),
-    IP(src="192.168.1.1", dst="8.8.8.8") / UDP(),
-    IP(src="192.168.1.2", dst="8.8.8.8") / TCP(),
-    IP(src="192.168.1.3", dst="192.168.1.1") / ICMP(),
-]
+packets = rdpcap("sample.pcap")
 
 analyser = TrafficAnalyser()
 
 for packet in packets:
     analyser.process_packet(packet)
 
-print("Packets:", analyser.packet_count)
-print("Bytes:", analyser.total_bytes)
-print("Protocols:", dict(analyser.protocol_counts))
-print("Bytes by Source:", dict(analyser.bytes_by_source))
-print("Bytes by Destination:", dict(analyser.bytes_by_destination))
-print("Top Sources:", analyser.top_sources())
-print("Top Destinations:", analyser.top_destinations())
-print("Top Connections:", analyser.top_connections())
+
+print("=======================================")
+print("   NETWORK TRAFFIC ANALYSIS REPORT")
+print("=======================================")
+print("Packets analysed:", analyser.packet_count)
+print("Total Traffic:", analyser.total_bytes, "B")
+
+print("---------------------------------------")
+print("Protocol Breakdown:")
+for protocol, count in analyser.protocol_counts.items():
+    print(f"{protocol}: {count} packets")
+print("---------------------------------------")
+print("Top Sources:")
+for source, count in analyser.top_sources():
+    print(f"{source}: {count} B")
+print("---------------------------------------")
+print("Top Destinations:")
+for destination, count in analyser.top_destinations():
+    print(f"{destination}: {count} B")
+print("---------------------------------------")
+print("Top Connections:")
+for connection, count in analyser.top_connections():
+    src, dst = connection
+    print(f"{src} -> {dst}: {count} B")
