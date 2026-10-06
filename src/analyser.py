@@ -1,5 +1,5 @@
 from src.packet_reader import parse_packet
-from collections import defaultdict
+from collections import defaultdict, deque
 
 class TrafficAnalyser:
     def __init__(self):
@@ -11,6 +11,11 @@ class TrafficAnalyser:
         self.connection_counts = defaultdict(int)
         self.connection_bytes = defaultdict(int)
 
+        self.window_size = 5
+        self.bytes_by_window = defaultdict(int)
+        self.recent_windows = deque(maxlen=5)
+        self.spike_threshold = 3.0
+
     def process_packet(self, packet):
         parsed_packet = parse_packet(packet)
         if parsed_packet:
@@ -19,6 +24,9 @@ class TrafficAnalyser:
             self.bytes_by_source[parsed_packet.src_ip] += parsed_packet.size
             self.bytes_by_destination[parsed_packet.dst_ip] += parsed_packet.size
             self.protocol_counts[parsed_packet.protocol] += 1
+
+            window = int(parsed_packet.timestamp) // self.window_size
+            self.bytes_by_window[window] += parsed_packet.size
 
             connection = (
                 parsed_packet.src_ip,
@@ -46,3 +54,21 @@ class TrafficAnalyser:
             key=lambda item: item[1],
             reverse=True
         )[:n]
+
+
+    def traffic_windows(self):
+        return sorted(self.bytes_by_window.items())
+
+    def detect_spikes(self):
+        spikes = []
+        self.recent_windows.clear()
+
+        for window, total_bytes in self.traffic_windows():
+            if len(self.recent_windows) >= 3:
+                avarage = sum(self.recent_windows) / len(self.recent_windows)
+                if avarage > 0 and total_bytes > avarage * self.spike_threshold:
+                    spikes.append((window, total_bytes, avarage))
+
+            self.recent_windows.append(total_bytes)
+
+        return spikes

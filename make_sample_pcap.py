@@ -1,12 +1,18 @@
-from scapy.all import IP, TCP, UDP, ICMP, wrpcap
+from scapy.all import IP, TCP, wrpcap
 
+packets = []
 
-packets = [
-    IP(src="192.168.1.1", dst="192.168.1.2") / TCP(),
-    IP(src="192.168.1.1", dst="8.8.8.8") / UDP(),
-    IP(src="192.168.1.2", dst="8.8.8.8") / TCP(),
-    IP(src="192.168.1.3", dst="192.168.1.1") / ICMP(),
-]
+# normal traffic
+for timestamp in [0, 5, 10]:
+    packet = IP(src="192.168.1.1", dst="8.8.8.8") / TCP()
+    packet.time = timestamp
+    packets.append(packet)
+
+# traffic spike
+for _ in range(30):
+    packet = IP(src="192.168.1.1", dst="8.8.8.8") / TCP()
+    packet.time = 15
+    packets.append(packet)
 
 wrpcap("sample.pcap", packets)
 
