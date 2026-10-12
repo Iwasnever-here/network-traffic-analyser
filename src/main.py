@@ -1,59 +1,116 @@
+import argparse
+
 from scapy.all import rdpcap
 
 from src.analyser import TrafficAnalyser
+from src.live_capture import start_live_capture
+from datetime import datetime
 
 
-packets = rdpcap("sample.pcap")
+def print_report(analyser):
+    print()
+    print("=======================================")
+    print("   NETWORK TRAFFIC ANALYSIS REPORT")
+    print("=======================================")
+    print("Packets analysed:", analyser.packet_count)
+    print("Total Traffic:", analyser.total_bytes, "B")
 
-analyser = TrafficAnalyser()
+    print("---------------------------------------")
+    print("Protocol Breakdown:")
 
-for packet in packets:
-    analyser.process_packet(packet)
+    for protocol, count in analyser.protocol_counts.items():
+        print(f"{protocol}: {count} packets")
+
+    print("---------------------------------------")
+    print("Top Sources:")
+
+    for source, bytes_sent in analyser.top_sources():
+        print(f"{source}: {bytes_sent} B")
+
+    print("---------------------------------------")
+    print("Top Destinations:")
+
+    for destination, bytes_received in analyser.top_destinations():
+        print(f"{destination}: {bytes_received} B")
+
+    print("---------------------------------------")
+    print("Top Connections:")
+
+    for connection, total_bytes in analyser.top_connections():
+        src, dst = connection
+        print(f"{src} -> {dst}: {total_bytes} B")
+
+    print("---------------------------------------")
+    print("Traffic by 5-second window:")
+
+    for window, total_bytes in analyser.traffic_windows():
+        timestamp = window * analyser.window_size
+        readable_time = datetime.fromtimestamp(timestamp).strftime("%H:%M:%S")
+
+        print(f"{readable_time}: {total_bytes} B")
+
+    print("---------------------------------------")
+    print("Traffic Spikes:")
+
+    spikes = analyser.detect_spikes()
+
+    if not spikes:
+        print("No spikes detected")
+    else:
+
+        for window, total_bytes, average in spikes:
+            multiplier = total_bytes / average
+
+            timestamp = window * analyser.window_size
+            readable_time = datetime.fromtimestamp(timestamp).strftime("%H:%M:%S")
+
+            print(
+                f"{readable_time}: "
+                f"{total_bytes} B "
+                f"({multiplier:.2f}x recent average)"
+            )
 
 
-print("=======================================")
-print("   NETWORK TRAFFIC ANALYSIS REPORT")
-print("=======================================")
-print("Packets analysed:", analyser.packet_count)
-print("Total Traffic:", analyser.total_bytes, "B")
+def main():
+    parser = argparse.ArgumentParser(
+        description="Network Traffic Analyser"
+    )
 
-print("---------------------------------------")
-print("Protocol Breakdown:")
-for protocol, count in analyser.protocol_counts.items():
-    print(f"{protocol}: {count} packets")
-print("---------------------------------------")
-print("Top Sources:")
-for source, count in analyser.top_sources():
-    print(f"{source}: {count} B")
-print("---------------------------------------")
-print("Top Destinations:")
-for destination, count in analyser.top_destinations():
-    print(f"{destination}: {count} B")
-print("---------------------------------------")
-print("Top Connections:")
-for connection, count in analyser.top_connections():
-    src, dst = connection
-    print(f"{src} -> {dst}: {count} B")
+    group = parser.add_mutually_exclusive_group(required=True)
 
-print("---------------------------------------")
-print("Traffic by 5-second window:")
+    group.add_argument(
+        "--file",
+        help="Analyse a PCAP file"
+    )
 
-for window, total_bytes in analyser.traffic_windows():
-    print(f"Window {window}: {total_bytes} B")
+    group.add_argument(
+        "--live",
+        action="store_true",
+        help="Capture live network traffic"
+    )
 
-print("---------------------------------------")
-print("Traffic Spikes:")
+    args = parser.parse_args()
 
-spikes = analyser.detect_spikes()
+    analyser = TrafficAnalyser()
 
-if not spikes:
-    print("No spikes detected")
-else:
-    for window, total_bytes, average in spikes:
-        multiplier = total_bytes / average
+    if args.file:
+        packets = rdpcap(args.file)
 
-        print(
-            f"Window {window}: "
-            f"{total_bytes} B "
-            f"({multiplier:.2f}x recent average)"
-        )
+        for packet in packets:
+            analyser.process_packet(packet)
+
+    elif args.live:
+        print("Starting live network capture...")
+        print("Generate some network traffic and press Ctrl+C to stop.")
+
+        try:
+            start_live_capture(analyser)
+
+        except KeyboardInterrupt:
+            print("\nCapture stopped.")
+
+    print_report(analyser)
+
+
+if __name__ == "__main__":
+    main()
