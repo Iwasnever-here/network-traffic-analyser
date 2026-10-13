@@ -1,5 +1,6 @@
 from src.packet_reader import parse_packet
 from collections import defaultdict, deque
+import threading
 
 class TrafficAnalyser:
     def __init__(self):
@@ -15,10 +16,14 @@ class TrafficAnalyser:
         self.bytes_by_window = defaultdict(int)
         self.recent_windows = deque(maxlen=5)
         self.spike_threshold = 3.0
+        self.lock = threading.Lock()
 
     def process_packet(self, packet):
         parsed_packet = parse_packet(packet)
-        if parsed_packet:
+        if not parsed_packet:
+            return
+
+        with self.lock:
             self.packet_count += 1
             self.total_bytes += parsed_packet.size
             self.bytes_by_source[parsed_packet.src_ip] += parsed_packet.size
@@ -72,3 +77,15 @@ class TrafficAnalyser:
             self.recent_windows.append(total_bytes)
 
         return spikes
+
+    def snapshot(self):
+        with self.lock:
+            return {
+                "packet_count": self.packet_count,
+                "total_bytes": self.total_bytes,
+                "protocol_counts": dict(self.protocol_counts),
+                "bytes_by_source": dict(self.bytes_by_source),
+                "bytes_by_destination": dict(self.bytes_by_destination),
+                "connection_bytes": dict(self.connection_bytes),
+                "bytes_by_window": dict(self.bytes_by_window),
+            }

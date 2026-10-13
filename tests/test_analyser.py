@@ -10,8 +10,11 @@ def test_packet_count_and_total_bytes():
 
     analyser.process_packet(packet)
 
-    assert analyser.packet_count == 1
-    assert analyser.total_bytes == len(packet)
+    snapshot = analyser.snapshot()
+
+    assert snapshot["packet_count"] == 1
+    assert snapshot["total_bytes"] == len(packet)
+
 
 def test_protocol_count():
     analyser = TrafficAnalyser()
@@ -20,7 +23,10 @@ def test_protocol_count():
 
     analyser.process_packet(packet)
 
-    assert analyser.protocol_counts["TCP"] == 1
+    snapshot = analyser.snapshot()
+
+    assert snapshot["protocol_counts"]["TCP"] == 1
+
 
 def test_source_bytes():
     analyser = TrafficAnalyser()
@@ -29,7 +35,35 @@ def test_source_bytes():
 
     analyser.process_packet(packet)
 
-    assert analyser.bytes_by_source["192.168.1.1"] == len(packet)
+    snapshot = analyser.snapshot()
+
+    assert snapshot["bytes_by_source"]["192.168.1.1"] == len(packet)
+
+
+def test_destination_bytes():
+    analyser = TrafficAnalyser()
+
+    packet = IP(src="192.168.1.1", dst="8.8.8.8") / TCP()
+
+    analyser.process_packet(packet)
+
+    snapshot = analyser.snapshot()
+
+    assert snapshot["bytes_by_destination"]["8.8.8.8"] == len(packet)
+
+
+def test_connection_bytes():
+    analyser = TrafficAnalyser()
+
+    packet = IP(src="192.168.1.1", dst="8.8.8.8") / TCP()
+
+    analyser.process_packet(packet)
+
+    snapshot = analyser.snapshot()
+
+    connection = ("192.168.1.1", "8.8.8.8")
+
+    assert snapshot["connection_bytes"][connection] == len(packet)
 
 
 def test_spike_detection():
@@ -56,6 +90,7 @@ def test_spike_detection():
 
     assert len(spikes) == 1
     assert spikes[0][0] == 3
+
 
 def test_normal_traffic_does_not_trigger_spike():
     analyser = TrafficAnalyser()
