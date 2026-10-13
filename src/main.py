@@ -1,10 +1,16 @@
 import argparse
 
 from scapy.all import rdpcap
+import os
+import threading
+import time
 
 from src.analyser import TrafficAnalyser
 from src.live_capture import start_live_capture
 from datetime import datetime
+
+def clear_terminal():
+    os.system("cls" if os.name == "nt" else "clear")
 
 
 def print_report(analyser):
@@ -101,13 +107,30 @@ def main():
 
     elif args.live:
         print("Starting live network capture...")
-        print("Generate some network traffic and press Ctrl+C to stop.")
+        print("Press Ctrl+C to stop.")
+
+        capture_thread = threading.Thread(
+            target=start_live_capture,
+            args=(analyser,),
+            daemon=True
+        )
+
+        capture_thread.start()
 
         try:
-            start_live_capture(analyser)
+            while True:
+                clear_terminal()
+
+                print("LIVE NETWORK TRAFFIC")
+                print("Press Ctrl+C to stop")
+
+                print_report(analyser)
+
+                time.sleep(2)
 
         except KeyboardInterrupt:
             print("\nCapture stopped.")
+            return
 
     print_report(analyser)
 

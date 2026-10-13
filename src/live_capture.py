@@ -1,12 +1,8 @@
 from scapy.all import sniff
 
 
-def start_live_capture(analyser, packet_count=0):
-    def handle_packet(packet):
-        analyser.process_packet(packet)
-
+def start_live_capture(analyser):
     sniff(
-        prn=handle_packet,
-        store=False,
-        count=packet_count
+        prn=analyser.process_packet,
+        store=False
     )
